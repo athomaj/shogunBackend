@@ -20,8 +20,11 @@
 
 var keystone = require('keystone');
 var middleware = require('./middleware');
+var restful = require('restful-keystone')(keystone);
 var importRoutes = keystone.importer(__dirname);
-
+var User = require('../models/User')
+var Gallery = require('../models/Gallery')
+const uuidv1 = require('uuid/v1');
 // Common Middleware
 keystone.pre('routes', middleware.initLocals);
 keystone.pre('render', middleware.flashMessages);
@@ -31,11 +34,64 @@ var routes = {
 	views: importRoutes('./views'),
 };
 
+const keyFilename="../shogun-adb49-firebase-adminsdk-7vhb1-b8502cbfbd.json"; //replace this with api key file
+const projectId = "shogun-adb49" //replace with your project id
+const bucketName = `${projectId}.appspot.com`;
+
+const gcs = require('@google-cloud/storage')({
+    projectId,
+    keyFilename
+});
+
+const bucket = gcs.bucket(bucketName);
+
+function createEvent(req, res, next) {
+	console.log('HERE');
+	var event = keystone.list('Gallery')
+	var newEvent = new event.model()
+
+	var QRCode = require('qrcode')
+
+	const eventId = uuidv1();
+	QRCode.toFile('./myqrcode.png', eventId, function (err, url) {
+		bucket.upload('./myqrcode.png',{
+		    public:true,
+		}, function(err, file) {
+		    if(err)
+		    {
+		        console.log(err);
+		        return;
+		    }
+				console.log(file);
+				newEvent.name = req.body.name;
+				newEvent.id = eventId;
+				newEvent.qrCode = {
+	        "width": 200,
+	        "height": 200,
+	        "format": "png",
+	        "resource_type": "image",
+	        "url": file.metadata.mediaLink,
+	        "secure_url": file.metadata.mediaLink}
+				newEvent.save();
+				res.status(200).send({data: 'created'})
+		});
+	})
+//	newEvent
+}
+
 // Setup Route Bindings
 exports = module.exports = function (app) {
 	// Views
 	app.get('/', routes.views.index);
 	app.get('/gallery', routes.views.gallery);
+
+	restful.expose({
+    User: true,
+		Gallery: true
+  }).before("create", {
+		Gallery: createEvent
+	})
+	.start();
 
 	// NOTE: To protect a route so that only admins can see it, use the requireUser middleware:
 	// app.get('/protected', middleware.requireUser, routes.views.protected);
