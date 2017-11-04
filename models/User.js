@@ -9,7 +9,7 @@ var User = new keystone.List('User');
 
 User.add({
 	name: { type: Types.Name, required: false, index: true },
-	username: { type: String, required: true, index: true, initial: true },
+	username: { type: String, required: false, index: true, initial: true },
 	email: { type: Types.Email, initial: true, required: false, index: true },
 	profileImage: { type: Types.CloudinaryImage },
 	password: { type: Types.Password, initial: true, required: false },
