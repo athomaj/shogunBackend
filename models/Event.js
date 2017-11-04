@@ -2,7 +2,7 @@ var keystone = require('keystone');
 var Types = keystone.Field.Types;
 const uuidv1 = require('uuid/v1');
 
-const keyFilename="../shogun-adb49-firebase-adminsdk-7vhb1-b8502cbfbd.json"; //replace this with api key file
+const keyFilename="./shogun-adb49-firebase-adminsdk-7vhb1-b8502cbfbd.json"; //replace this with api key file
 const projectId = "shogun-adb49" //replace with your project id
 const bucketName = `${projectId}.appspot.com`;
 
