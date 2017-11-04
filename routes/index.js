@@ -23,7 +23,7 @@ var middleware = require('./middleware');
 var restful = require('restful-keystone')(keystone);
 var importRoutes = keystone.importer(__dirname);
 var User = require('../models/User')
-var Gallery = require('../models/Gallery')
+var Event = require('../models/Event')
 const uuidv1 = require('uuid/v1');
 // Common Middleware
 keystone.pre('routes', middleware.initLocals);
@@ -47,14 +47,15 @@ const bucket = gcs.bucket(bucketName);
 
 function createEvent(req, res, next) {
 	console.log('HERE');
-	var event = keystone.list('Gallery')
+	var event = keystone.list('Event')
 	var newEvent = new event.model()
 
 	var QRCode = require('qrcode')
+	console.log(newEvent);
 
 	const eventId = uuidv1();
-	QRCode.toFile('./myqrcode.png', eventId, function (err, url) {
-		bucket.upload('./myqrcode.png',{
+	QRCode.toFile(`./${eventId}.png`, eventId, function (err, url) {
+		bucket.upload(`./${eventId}.png`,{
 		    public:true,
 		}, function(err, file) {
 		    if(err)
@@ -64,10 +65,10 @@ function createEvent(req, res, next) {
 		    }
 				console.log(file);
 				newEvent.name = req.body.name;
-				newEvent.id = eventId;
+				newEvent._id = eventId;
 				newEvent.qrCode = {
-	        "width": 200,
-	        "height": 200,
+	        "width": 600,
+	        "height": 600,
 	        "format": "png",
 	        "resource_type": "image",
 	        "url": file.metadata.mediaLink,
@@ -79,17 +80,84 @@ function createEvent(req, res, next) {
 //	newEvent
 }
 
+function updateEvent(req, res, next) {
+	var event = keystone.list('Event')
+	event.model.findById(req.params.id).exec(function(err, event){
+		// add user to event
+		if (req.body.userId) {
+			if (event.participants.includes(req.body.userId)) {
+				res.status(401).send({'error': 'You are already part of this event'})
+			} else {
+				event.participants.push(req.body.userId)
+				event.save();
+				res.status(200).send({event})
+			}
+		} else {
+			event.images.push({
+				"width": 600,
+				"height": 600,
+				"format": "png",
+				"resource_type": "image",
+				"url": req.body.image,
+				"secure_url": req.body.image
+			})
+			event.save();
+			res.status(200).send({event});
+		}
+	});
+}
+
+function updateUser(req, res, next) {
+	var User = keystone.list('User')
+	User.model.findById(req.params.id).exec(function(err, user) {
+		if (req.body.username) {
+			user.username = req.body.username;
+		}
+		if (req.body.profileImg) {
+			user.profileImage = {
+				"width": 600,
+				"height": 600,
+				"format": "png",
+				"resource_type": "image",
+				"url": req.body.profileImg,
+				"secure_url": req.body.profileImg
+			}
+		}
+		user.save();
+		res.status(200).send({user})
+	});
+}
+
+function getEvents(req, res, next) {
+	var Event = keystone.list('Event')
+	Event.model.find().exec(function(err, events){
+		const userEvents = [];
+		for (var i = 0; i < events.length; i++) {
+			if (events[i].participants.includes(req.query.userId)) {
+				userEvents.push(events[i]);
+		 	}
+		}
+		res.status(200).send({events: userEvents});
+	});
+}
+
 // Setup Route Bindings
 exports = module.exports = function (app) {
 	// Views
+	console.log(routes.views);
 	app.get('/', routes.views.index);
-	app.get('/gallery', routes.views.gallery);
+	app.get('/event', routes.views.event);
 
 	restful.expose({
     User: true,
-		Gallery: true
+		Event: true
   }).before("create", {
-		Gallery: createEvent
+		Event: createEvent
+	}).before("update", {
+		Event: updateEvent,
+		User: updateUser
+	}).before("list", {
+		Event: getEvents
 	})
 	.start();
 

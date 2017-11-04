@@ -1,0 +1,27 @@
+extends ../layouts/default
+
+block intro
+	.container
+		h1 Events
+
+block content
+	.container
+		if events.length
+			each event in events
+				h2= event.name
+					if event.publishedDate
+						.pull-right.text-muted= event._.publishedDate.format('Do MMM YYYY')
+				p= 'Start Date: ' + event._.startDate.format('Do MMM YYYY hh:mm:ss')
+				p= 'End Date: ' + event._.endDate.format('Do MMM YYYY hh:mm:ss')
+				h4= 'Event Description'
+				p= event.description
+
+				p= 'Share this QRcode so people can join your event:'
+				p= event.qrCode.url
+				.row.event-images
+					.col-sm-4.col-md-4.event-image: img(src=event.qrCode.url width=300 height=300).img-rounded
+					.col-sm-8.col-md-8: .row
+						each image in event.images
+							.col-xs-4.col-sm-4.col-md-3.event-image: img(src=image.limit(300,300)).img-rounded
+		else
+			h3.text-muted There are no events yet.
